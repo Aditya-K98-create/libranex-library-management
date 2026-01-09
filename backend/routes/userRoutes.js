@@ -1,12 +1,72 @@
 const express = require("express");
 const router = express.Router();
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-const {
-  register,
-  login
-} = require("../controllers/userController");
+/*
+================================================
+ TEMP LOGIN BYPASS (FOR DEMO / PORTFOLIO)
+================================================
+*/
+router.post("/login", async (req, res) => {
+  return res.status(200).json({
+    token: "demo-token-123",
+    user: {
+      _id: "demo-admin-id",
+      name: "Admin",
+      email: "admin@gmail.com",
+      role: "admin",
+    },
+  });
+});
 
-router.post("/register", register);
-router.post("/login", login);
+/*
+================================================
+ REGISTER USER (STUDENT)
+================================================
+*/
+router.post("/register", async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      name,
+      email,
+      password: hashedPassword,
+      role: "student",
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      message: "User registered successfully",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/*
+================================================
+ GET ALL USERS (OPTIONAL – ADMIN USE)
+================================================
+*/
+router.get("/", async (req, res) => {
+  const users = await User.find().select("-password");
+  res.json(users);
+});
 
 module.exports = router;
